@@ -34,17 +34,24 @@
 
 #include "documents.hpp"
 
-namespace collection {
+namespace collections {
 
-    // Metric that will indicate the distance between vectors
+    /**
+     * @brief Metric algorithm that vectors similarity
+     *        search will be used on.
+     *      
+     */
     enum metric {
         cosine,
         l2,
         inner_product
     };
 
-    // ENUM for representing the status of a 
-    // operation made on a collection.
+    /**
+     * @brief ENUM to represent the status
+     *  of a collection operation
+     * 
+     */
     enum collection_status {
         ok,
         no_change,
@@ -55,13 +62,27 @@ namespace collection {
         unexpected_error
     };
 
-    // Convert ENUM value to a string
-    std::string metric_to_string(const collection::metric m);
-    collection::metric string_to_metric(const std::string m);
+    /**
+     * @brief Converts a metric ENUM name to a string version
+     * 
+     * @param m 
+     * @return std::string 
+     */
+    std::string metric_to_string(const collections::metric m);
 
-    // Struct data model to represent a Collection
-    // of a vector database
-    struct Collection
+    /**
+     * @brief Converts string name to ENUM version
+     * 
+     * @param m 
+     * @return collections::metric 
+     */
+    collections::metric string_to_metric(const std::string m);
+
+    /**
+     * @brief Struct to represent Collection object
+     * 
+     */
+    struct collection
     {
         // unique id for collection
         std::string id;
@@ -73,7 +94,7 @@ namespace collection {
         unsigned int dimension;
 
         // metric used for similarity searches
-        collection::metric metric;
+        collections::metric metric;
     };
 
 }

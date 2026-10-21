@@ -7,7 +7,7 @@ int main(){
 
     vektor::sqlite_persistent_client c;
 
-    collection::Collection _collection = c.get(
+    collections::collection _collection = c.get(
             "2a1e2770-ab77-4bac-b918-fcd1cc550515");
 
     std::cout << "ID: " << _collection.id << std::endl;

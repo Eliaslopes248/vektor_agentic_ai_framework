@@ -31,24 +31,24 @@
 #include "vectordb/collections.hpp"
 
 
-std::string collection::metric_to_string(const collection::metric m) {
+std::string collections::metric_to_string(const collections::metric m) {
     switch (m) {
-        case collection::metric::cosine:       return "cosine";
-        case collection::metric::l2:           return "l2";
-        case collection::metric::inner_product: return "inner_product";
+        case collections::metric::cosine:       return "cosine";
+        case collections::metric::l2:           return "l2";
+        case collections::metric::inner_product: return "inner_product";
     }
     throw std::invalid_argument("Unknown metric");
 }
 
-collection::metric collection::string_to_metric(const std::string m) {
+collections::metric collections::string_to_metric(const std::string m) {
     if (m == "cosine") {
-        return collection::metric::cosine;
+        return collections::metric::cosine;
     }
     if (m == "l2") {
-        return collection::metric::l2;
+        return collections::metric::l2;
     }
     if (m == "inner_product") {
-        return collection::metric::inner_product;
+        return collections::metric::inner_product;
     }
 
     throw std::invalid_argument("Unknown metric: " + m);

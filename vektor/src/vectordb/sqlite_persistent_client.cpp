@@ -124,21 +124,19 @@ vektor::sqlite_persistent_client::sqlite_persistent_client(
             );
         }
 
-
-        
     }
 
 
 // Create a collection namespace inside vector database
-vektor::response<collection::Collection>
+vektor::response<collections::collection>
     vektor::sqlite_persistent_client::create_collection(
             const std::string id, 
             const std::string name, 
             const unsigned int dimension, 
-            const collection::metric metric) {
+            const collections::metric metric) {
 
             // Collection struct
-            vektor::response<collection::Collection> response;
+            vektor::response<collections::collection> response;
 
             try {
                 // Catch invalid collection name
@@ -150,7 +148,7 @@ vektor::response<collection::Collection>
                 }
 
                 // convert strings to char*
-                std::string metric_str  = collection::metric_to_string(metric);
+                std::string metric_str  = collections::metric_to_string(metric);
                 const char* _metric     = metric_str.c_str();
                 const char* _id         = id.c_str();
                 const char* _name       = name.c_str();
@@ -198,7 +196,7 @@ vektor::response<collection::Collection>
                 }
 
                 // construct return payload
-                collection::Collection _collection;
+                collections::collection _collection;
                 _collection.id          = id;
                 _collection.name        = name;
                 _collection.dimension   = dimension;
@@ -263,8 +261,8 @@ vektor::response<documents::document_status>
                 // Validate dimension size of embeddings
                 // fetching the collection will also validate the FK exists
                 // err is expected to be NULL if successful query
-                collection::collection_status* err = nullptr;
-                collection::Collection _collection = this->get_collection(collection_id, err);
+                collections::collection_status* err = nullptr;
+                collections::collection _collection = this->get_collection(collection_id, err);
 
                 if (err) {
                     throw vektor::sqlite3::sqlite_query_error(
@@ -406,8 +404,8 @@ vektor::response<documents::document_status> vektor::sqlite_persistent_client::u
             } 
 
             // ensure collection FK exists
-            collection::collection_status* err;
-            collection::Collection _fk = this->get_collection(collection_id, err);
+            collections::collection_status* err;
+            collections::collection _fk = this->get_collection(collection_id, err);
 
             if (err != nullptr) {
                 throw std::invalid_argument(
@@ -452,11 +450,11 @@ documents::document
 
     }
 
-collection::Collection 
+collections::collection 
     vektor::sqlite_persistent_client::get_collection(
-        std::string id, collection::collection_status* err) {
+        std::string id, collections::collection_status* err) {
 
-    collection::Collection _collection;
+    collections::collection _collection;
     try {
 
         if (id.empty()) {
@@ -524,7 +522,7 @@ collection::Collection
             _collection.id          = _id;
             _collection.name        = _name;
             _collection.dimension   = _dimension;
-            _collection.metric      = collection::string_to_metric(_metric);
+            _collection.metric      = collections::string_to_metric(_metric);
 
         }
         // free SQL statement pointer resources
@@ -535,17 +533,17 @@ collection::Collection
     }
     catch (const std::invalid_argument e){
         std::cerr << e.what() << std::endl;
-        *err = collection::collection_status::unexpected_error;
+        *err = collections::collection_status::unexpected_error;
         return _collection;
     }
     catch (const vektor::sqlite3::sqlite_cmd_error& e){
         std::cerr << e.what() << std::endl;
-        *err = collection::collection_status::operation_error;
+        *err = collections::collection_status::operation_error;
         return _collection;
     }
     catch (const std::exception& e){
         std::cerr << e.what() << std::endl;
-        *err = collection::collection_status::unexpected_error;
+        *err = collections::collection_status::unexpected_error;
         return _collection;
     }
     

@@ -52,7 +52,9 @@ namespace vektor{
 
     namespace sqlite3 {
 
-        // SQLite data types
+        /**
+         * @brief Enum that represents SQLite data types
+         */
         enum data_types {
             _int,
             _text,
@@ -70,8 +72,10 @@ namespace vektor{
             void* data, int column_count, 
             char** values, char** column_names);
 
-        // Custom exception classes for more specific 
-        // error and exception handling
+        /**
+         * @brief Custom exception classes for more specific
+         *      error and exception handling
+         */
         struct sqlite_client_error : public std::runtime_error {
             using std::runtime_error::runtime_error;
         };
@@ -104,33 +108,45 @@ namespace vektor{
         ~sqlite_persistent_client();
 
 
-        // Creates a collection inside vector database
-        // so doc/embeddings can be upserted into collection namespaces
-        vektor::response<collection::Collection> create_collection(
-            const std::string id, const std::string name, const unsigned int dimension, const collection::metric metric) override;
-        
-        vektor::response<collection::Collection> create_collection(
-            const std::string name, const unsigned int dimension, const collection::metric metric) override
+        /**
+         * @brief Create a collection in SQLite vector store,
+         *        and returns a Collection struct payload
+         * @param id 
+         * @param name 
+         * @param dimension 
+         * @param metric 
+         * @return vektor::response<collections::collection> 
+         */
+        vektor::response<collections::collection> create_collection(
+            const std::string id, const std::string name, const unsigned int dimension, const collections::metric metric) override;
+        vektor::response<collections::collection> create_collection(
+            const std::string name, const unsigned int dimension, const collections::metric metric) override
             {
                 const std::string id = uuid();
                 return create_collection(id, name, dimension, metric);
             }
-
-        vektor::response<collection::Collection> create_collection(
+        vektor::response<collections::collection> create_collection(
             const std::string name, const unsigned int dimension) override
             {
-                return create_collection(name, dimension, collection::metric::cosine);
+                return create_collection(name, dimension, collections::metric::cosine);
             }
-        
-        vektor::response<collection::Collection> create_collection(
+        vektor::response<collections::collection> create_collection(
             const std::string name) override 
             {
-                return create_collection(name, 384, collection::metric::cosine);
+                return create_collection(name, 384, collections::metric::cosine);
             }
 
         
-        // Adding records to vector database
-        // insert() creates a new record and upsert() updates a existing record
+        /**
+         * @brief Inserts a document into SQLite vector store,
+         *        document must be a new document
+         * @param id 
+         * @param collection_id 
+         * @param content 
+         * @param embeddings 
+         * @param metadata 
+         * @return vektor::response<documents::document_status> 
+         */
         vektor::response<documents::document_status> insert(
             std::string         id, 
             std::string         collection_id, 
@@ -138,24 +154,70 @@ namespace vektor{
             std::vector<float>  embeddings,
             documents::json     metadata) override;
 
+
+        /**
+         * @brief Updates a document row in SQLite documents
+         *        table. Document must already exist for
+         *        method to successfully work
+         * @param id 
+         * @param collection_id 
+         * @param content 
+         * @param embeddings 
+         * @param metadata 
+         * @return vektor::response<documents::document_status> 
+         */
         vektor::response<documents::document_status> upsert(
             std::string         id, 
             std::string         collection_id, 
             std::string         content, 
             std::vector<float>  embeddings,
             documents::json     metadata) override;
+            
 
-        // Access and remove existing collections
-        collection::Collection get_collection(std::string id, collection::collection_status* err) override;
-        collection::Collection get_collection(std::string id) {
+
+        /**
+         * @brief Get the collection object from SQLite
+         *        vector store. Error pointer is given
+         *        value upon failure.
+         * @param id 
+         * @param err 
+         * @return collections::collection 
+         */
+        collections::collection get_collection(std::string id, collections::collection_status* err) override;
+        collections::collection get_collection(std::string id) {
             return get_collection(id, nullptr);
         }
+
+        /**
+         * @brief Get the record row from SQLite
+         *      vector store by record ID. Error 
+         *      pointer is given value upon failure.
+         * 
+         * @param id 
+         * @param err 
+         * @return documents::document 
+         */
         documents::document get_record(std::string id, documents::document_status* err) override;
         documents::document get_record(std::string id) {
             return get_record(id, nullptr);
         }
 
+        /**
+         * @brief Removes a record row from SQLite
+         *      vector store by record ID.
+         * 
+         * @param id 
+         * @return vektor::response<documents::document_status> 
+         */
         vektor::response<documents::document_status> remove_record(std::string id) override;
+        
+        /**
+         * @brief Removes a collection row from SQLite
+         *      vector store by collection ID.
+         * 
+         * @param collection_id 
+         * @return vektor::response<documents::document_status> 
+         */
         vektor::response<documents::document_status> remove_collection(std::string collection_id) override;
 
         fs::path get_sqlite_file() {
@@ -172,31 +234,84 @@ namespace vektor{
 
         fs::path sqlite_file;
 
+        /**
+         * @brief sqlite.h callback for sqlite3_exec(...) function.
+         *        Extracts results row by row and add to a container.
+         * 
+         * @param data 
+         * @param column_count 
+         * @param values 
+         * @param column_names 
+         * @return int 
+         */
         static int sqlite3_callback(
             void* data, int column_count, 
             char** values, char** column_names);
 
-        // SQL Helper methods
+        /**
+         * @brief Generates current time stamp
+         * 
+         * @return std::string 
+         */
         std::string current_timestamp();
+
+
+        /**
+         * @brief Generates a UUID
+         * 
+         * @return std::string 
+         */
         std::string uuid();
         
 
-        // Execute SQLite3 command on target file
+        /**
+         * @brief Executes a simple SQLite command
+         * @deprecated DO NOT USE
+         * @param command 
+         * @param file 
+         * @return RC 
+         */
         RC execute_sqlite_cmd(std::string command, fs::path file);
         RC execute_sqlite_cmd(std::string command);
 
-        // Create all tables in database
+        
+        /**
+         * @brief Initializes SQLite database, runs
+         *      all create table commands and sets
+         *      database configuration.
+         * 
+         * @param file 
+         * @return RC 
+         */
         RC init_database(fs::path file);
         RC init_database();
 
-        // Deletes database file
+        /**
+         * @brief Deletes SQLite database file
+         * 
+         * @param file 
+         * @return RC 
+         */
         RC destroy_database(fs::path file);
         RC destroy_database();
         
-        // Construct SQLite command from vector of strings
+        /**
+         * @brief Builds a simple SQLite command from 
+         *      vector of command tokens
+         * @deprecated DO NOT USE
+         * @param args 
+         * @return std::string 
+         */
         std::string construct_sqlite_cmd(std::vector<std::string> args);
 
-        // Apply filesystem permissions to a directory or file
+        /**
+         * @brief Apply filesystem permissions to a directory or file
+         * 
+         * @param path 
+         * @param perms 
+         * @param replace 
+         * @return RC 
+         */
         RC apply_fs_perm(
             const fs::path path, const fs::perms perms, const bool replace);
         RC apply_fs_perm(

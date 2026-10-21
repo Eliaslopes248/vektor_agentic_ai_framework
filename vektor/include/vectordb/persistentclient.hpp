@@ -115,19 +115,19 @@ namespace vektor{
          * @param name 
          * @param dimension 
          * @param metric 
-         * @return vektor::response<collection::Collection> 
+         * @return vektor::response<collections::collection> 
          */
-        virtual vektor::response<collection::Collection> create_collection(
+        virtual vektor::response<collections::collection> create_collection(
             const std::string id, const std::string name, 
-            const unsigned int dimension, const collection::metric metric) = 0;
+            const unsigned int dimension, const collections::metric metric) = 0;
 
-        virtual vektor::response<collection::Collection> create_collection(
-            const std::string name, const unsigned int dimension, const collection::metric metric) = 0;
+        virtual vektor::response<collections::collection> create_collection(
+            const std::string name, const unsigned int dimension, const collections::metric metric) = 0;
 
-        virtual vektor::response<collection::Collection> create_collection(
+        virtual vektor::response<collections::collection> create_collection(
             const std::string name, const unsigned int dimension) = 0;
 
-        virtual vektor::response<collection::Collection> create_collection(
+        virtual vektor::response<collections::collection> create_collection(
             const std::string name) = 0;
 
         /**
@@ -172,10 +172,10 @@ namespace vektor{
          *        value upon failure.
          * @param id 
          * @param err 
-         * @return collection::Collection 
+         * @return collections::collection 
          */
-        virtual collection::Collection get_collection(
-                std::string id, collection::collection_status* err) = 0;
+        virtual collections::collection get_collection(
+                std::string id, collections::collection_status* err) = 0;
 
 
         /**
