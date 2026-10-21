@@ -30,13 +30,34 @@
 
 #pragma once
 #include <iostream>
+#include <nlohmann/json.hpp>
 
-namespace collection{
+#include "documents.hpp"
+
+namespace collection {
 
     // Metric that will indicate the distance between vectors
     enum metric {
-        cosine
+        cosine,
+        l2,
+        inner_product
     };
+
+    // ENUM for representing the status of a 
+    // operation made on a collection.
+    enum collection_status {
+        ok,
+        no_change,
+        created,
+        deleted,
+        not_found,
+        operation_error,
+        unexpected_error
+    };
+
+    // Convert ENUM value to a string
+    std::string metric_to_string(const collection::metric m);
+    collection::metric string_to_metric(const std::string m);
 
     // Struct data model to represent a Collection
     // of a vector database
@@ -56,3 +77,4 @@ namespace collection{
     };
 
 }
+

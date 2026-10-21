@@ -54,6 +54,14 @@
 
 /**
  * ======================
+ * SQLITE3 CONFIG MACROS
+ * ======================
+ */
+
+ #define ENABLE_FK R"(PRAGMA foreign_keys = ON;)"
+
+/**
+ * ======================
  * CREATE TABLE MACROS
  * ======================
  */
@@ -82,10 +90,50 @@
         FOREIGN KEY (collection_id)
             REFERENCES collections(id)
             ON DELETE CASCADE
-        );
+    );
+)"
 
-    CREATE INDEX idx_documents_collection
+/**
+ * ======================
+ * CREATE TABLE INDEX MACROS
+ * ======================
+ */
+
+#define DOCUMENT_CREATE_INDEX R"(
+    CREATE INDEX IF NOT EXISTS idx_documents_collection
         ON documents(collection_id);
 )"
 
+/**
+ * ====================
+ * INIT ALL SCHEMAS
+ * ====================
+ */
+#define SQLITE3_INIT_ALL_SCHEMAS R"(
+    PRAGMA foreign_keys = ON;
 
+    CREATE TABLE IF NOT EXISTS collections (
+        id          TEXT PRIMARY KEY,
+        name        TEXT NOT NULL UNIQUE,
+        dimension   INTEGER NOT NULL CHECK (dimension > 0),
+        metric      TEXT NOT NULL DEFAULT 'cosine'
+                    CHECK (metric IN ('cosine', 'l2', 'inner_product'))
+    );
+
+    CREATE TABLE IF NOT EXISTS documents (
+        id            TEXT PRIMARY KEY,
+        collection_id TEXT NOT NULL,
+        content       TEXT,
+        embedding     BLOB NOT NULL,
+        metadata      TEXT NOT NULL DEFAULT '{}',
+        created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        FOREIGN KEY (collection_id)
+            REFERENCES collections(id)
+            ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_documents_collection
+        ON documents(collection_id);
+)"

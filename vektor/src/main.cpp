@@ -3,16 +3,27 @@
 #include "vectordb/vectordb.hpp"
 int main(){
 
-    std::cout << "Running" << std::endl;
-    fs::path p = DEFAULT_DATA_STORE_DIR;
+    std::cout << "\n\n---------------------- Running ---------------------- " << std::endl;
 
-    vektor::sqlite_persistent_client c(p);
-    std::string cmd = "CREATE TABLE IF NOT EXISTS collections (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, dimension INTEGER NOT NULL, metric TEXT NOT NULL DEFAULT 'cosine');";
-    c.execute_sqlite_cmd(cmd);
-    cmd = "INSERT INTO collections (id, name, dimension, metric) VALUES ('col_001', 'documents', 384, 'cosine');";
-    c.execute_sqlite_cmd(cmd);
+    vektor::sqlite_persistent_client c;
+
+    collection::Collection _collection = c.get(
+            "2a1e2770-ab77-4bac-b918-fcd1cc550515");
+
+    std::cout << "ID: " << _collection.id << std::endl;
+    std::cout << "NAME: " << _collection.name << std::endl;
     
-    std::cout << "Done." << std::endl;
+    std::cout << "--------------------------------------------------- " << std::endl;
+
+    c.insert(
+        "137372373dvdvehehc",
+        "2a1e2770-ab77-4bac-b918-fcd1cc550515",
+        "this is doc chunk",
+        {1.0f,1.5f,4.0f,5.4f,2.3f},
+        {}
+    );
+
+    std::cout << "---------------------- Done. ---------------------- " << std::endl;
    
     return 0;
 }

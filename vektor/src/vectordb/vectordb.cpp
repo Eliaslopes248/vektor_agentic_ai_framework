@@ -29,13 +29,19 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 
-#include "vectordb/vectordb.hpp"
-#include "utils/rc.hpp"
 #include <filesystem>
 #include <fstream>
 
+#include "vectordb/vectordb.hpp"
+#include "utils/rc.hpp"
+
 namespace fs = std::filesystem;
 
+/**
+ * @todo: Implement constructor
+ * Add exception handlers
+ * 
+ */
 vektor::vector_db::vector_db(
     const fs::path dir_path, const fs::path backend_file) {
 

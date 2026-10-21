@@ -1,15 +1,33 @@
-# Author: Elias Lopes
+# Copyright 2026, Elias Lopes
+# All rights reserved.
 #
-# Desc:	This Makefile will have all the main build targets
-# 		for this project. It will also have the main build targets
-# 		testing infrastructure too.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
 #
-#		This project is mainly a singular library that will be 
-#		by other projects, however in this project we do have a
-#		src/main.cpp that can be used to run quick checks of code.
+#     * Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+# copyright notice, this list of conditions and the following disclaimer
+# in the documentation and/or other materials provided with the
+# distribution.
+#     * Neither the name of Elias Lopes nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
 #
-# Usage:
-# 	make [TARGET_NAME]
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
 
 
 # Basic C++ compiler definitions and FLAGS
@@ -46,6 +64,9 @@ VEKTOR_OBJECT_FILES 	 = $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_OBJ_DIR)/%.o, $(VEK
 
 # Target output executables and libfiles
 TARGET_MAIN 	  = $(BUILD_BIN_DIR)/main 
+
+# Resolve platform specific file extensions
+# Must identify which OS we're building for
 TARGET_VEKTOR_LIB = $(BUILD_LIBS_DIR)/libvektor.so
 
 # Include Search List
@@ -53,8 +74,34 @@ VEKTOR_INCLUDE_PATHS = -Iinclude
 
 # Library search path
 VEKTOR_LIB_PATHS = -Lbuild/libs
-VEKTOR_LINK_LIBS = -lvektor
-UT_RPATH_LIST = -Wl,-rpath,@executable_path/../libs
+MAIN_LINK_LIBS = -lvektor -lsqlite3 
+VEKTOR_LDFLAGS = -lsqlite3
+
+UNAME_S 		:= $(shell uname -s)
+SHARED_FLAGS 	:= 
+INSTALL_NAME 	:= 
+UT_RPATH_LIST 	:=
+
+# Set flags for platform and set file extension for library file
+ifeq ($(UNAME_S),Darwin)
+    # macOS
+    SHARED_FLAGS	:= -dynamiclib
+    INSTALL_NAME 	:= -Wl,-install_name,@rpath/libvektor.so
+    UT_RPATH_LIST 	:= -Wl,-rpath,@executable_path/../libs
+
+	
+	VEKTOR_INCLUDE_PATHS += -I/opt/homebrew/opt/boost/include
+	VEKTOR_INCLUDE_PATHS += -I/opt/homebrew/Cellar/nlohmann-json/3.12.0/include/
+
+else ifeq ($(UNAME_S),Linux)
+    # Linux
+    SHARED_FLAGS := -shared
+    INSTALL_NAME := -Wl,-soname,libvektor.so
+    UT_RPATH_LIST := -Wl,-rpath,'$$ORIGIN/../libs'
+
+else
+    $(error Unsupported platform: $(UNAME_S))
+endif
 
 # Compile a source file into object file
 $(BUILD_OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp build_dir_setup
@@ -66,10 +113,8 @@ $(BUILD_OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp build_dir_setup
 # Compile ./main and link libraries
 $(TARGET_MAIN): $(VEKTOR_OBJECT_FILES)
 	$(CXX) $(CXX_FLAGS) $^ \
-	$(VEKTOR_LIB_PATHS) $(UT_RPATH_LIST) $(VEKTOR_LINK_LIBS) \
+	$(VEKTOR_LIB_PATHS) $(UT_RPATH_LIST) $(MAIN_LINK_LIBS) \
 	-o $@
-
-
 
 .PHONY: main
 main: lib $(TARGET_MAIN)
@@ -94,10 +139,20 @@ $(TARGET_VEKTOR_LIB): $(VEKTOR_OBJECT_FILES)
 	@echo "--------------------------------"
 	@echo "Building shared library..."
 	@echo "--------------------------------"
-	$(CXX) -dynamiclib \
-	-install_name @rpath/libvektor.so \
+	$(CXX) $(SHARED_FLAGS) $(INSTALL_NAME) \
+	$(VEKTOR_LDFLAGS)	\
 	-o $@ \
 	$^
+
+# Deprecated
+# $(TARGET_VEKTOR_LIB): $(VEKTOR_OBJECT_FILES)
+# 	@echo "--------------------------------"
+# 	@echo "Building shared library..."
+# 	@echo "--------------------------------"
+# 	$(CXX) -dynamiclib \
+# 	-install_name @rpath/libvektor.so \
+# 	-o $@ \
+# 	$^
 
 
 # Clean up targets
