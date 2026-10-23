@@ -148,22 +148,19 @@ namespace vektor{
             documents::json metadata) = 0;
 
         /**
-         * @brief Updates a document row in SQLite documents
-         *        table. Document must already exist for
-         *        method to successfully work
-         * @param id 
-         * @param collection_id 
-         * @param content 
-         * @param embeddings 
-         * @param metadata 
-         * @return vektor::response<documents::document_status> 
+         * @brief Inserts a document if it does not exist, or updates only
+         *        the fields provided if it already exists.
+         *
+         * @param doc Document data. The document ID is required.
+         *            Collection may be identified by collection_id or
+         *            collection_name. When updating an existing document,
+         *            unset optional fields remain unchanged.
+         *
+         * @return vektor::response<documents::document_status>
          */
         virtual vektor::response<documents::document_status> upsert(
-            std::string id, 
-            std::string collection_id, 
-            std::string content, 
-            std::vector<float> embeddings,
-            documents::json metadata) = 0;
+            documents::document doc
+        ) = 0;
 
 
         /**
@@ -174,7 +171,7 @@ namespace vektor{
          * @param err 
          * @return collections::collection 
          */
-        virtual collections::collection get_collection(
+        virtual collections::collection get_collection_by_id(
                 std::string id, collections::collection_status* err) = 0;
 
 
@@ -187,7 +184,7 @@ namespace vektor{
          * @param err 
          * @return documents::document 
          */
-        virtual documents::document get_record(
+        virtual documents::document get_document_by_id(
                 std::string id, documents::document_status* err) = 0;
         
         /**
@@ -197,7 +194,7 @@ namespace vektor{
          * @param id 
          * @return vektor::response<documents::document_status> 
          */
-        virtual vektor::response<documents::document_status> remove_record(std::string id) = 0;
+        virtual vektor::response<documents::document_status> remove_document(std::string id) = 0;
         
         /**
          * @brief Removes a collection row from SQLite

@@ -29,6 +29,9 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 
+#include <any>
+#include <map>
+#include <utility>
 #include <fstream>
 #include <string>
 #include <iostream>
@@ -42,6 +45,8 @@
 
 #include "vectordb/sqlite_persistent_client.hpp"
 #include "vectordb/sqlite_persistent_client_sql.hpp"
+
+
 
 
 // Clean up destructor
@@ -262,7 +267,7 @@ vektor::response<documents::document_status>
                 // fetching the collection will also validate the FK exists
                 // err is expected to be NULL if successful query
                 collections::collection_status* err = nullptr;
-                collections::collection _collection = this->get_collection(collection_id, err);
+                collections::collection _collection = this->get_collection_by_id(collection_id, err);
 
                 if (err) {
                     throw vektor::sqlite3::sqlite_query_error(
@@ -290,7 +295,7 @@ vektor::response<documents::document_status>
                     VALUES (?, ?, ?, ?, ?, ?, ?);
                 )";
             
-                sqlite3_stmt* stmt;
+                sqlite3_stmt* stmt = nullptr;
 
                 int rc = sqlite3_prepare_v3(
                     this->__database, sql.c_str(), -1, 0, &stmt, nullptr);
@@ -379,79 +384,259 @@ vektor::response<documents::document_status>
         }
 
 
-// TODO: Implement this method below
-vektor::response<documents::document_status> vektor::sqlite_persistent_client::upsert(
-    std::string         id, 
-    std::string         collection_id, 
-    std::string         content, 
-    std::vector<float>  embeddings,
-    documents::json     metadata) {
+// Update pre-existing document
+vektor::response<documents::document_status> 
+    vektor::sqlite_persistent_client::upsert(documents::document doc) {
 
         vektor::response<documents::document_status> response;
                 
         try{
             // validate input arguments
-            if (id.empty()) {
+            if (!doc.id || (doc.id && doc.id->empty())) {
                 throw std::invalid_argument(
-                    "Unable to upsert document \'id\' cannot be empty string."
+                    "Unable to upsert document \'id\' cannot be unset."
                 );
             } 
-
-            if (collection_id.empty()) {
-                throw std::invalid_argument(
-                    "Unable to upsert document \'collection_id\' cannot be empty string."
-                );
-            } 
-
-            // ensure collection FK exists
-            collections::collection_status* err;
-            collections::collection _fk = this->get_collection(collection_id, err);
-
-            if (err != nullptr) {
-                throw std::invalid_argument(
-                    "Unable to upsert document \'collection_id\' doesnt reference any collection."
-                );
-            }
 
             // ensure document already exists so we can update it
+            documents::document_status* err = nullptr;
+            std::string doc_id      = *doc.id;
+            documents::document __  = this->get_document_by_id(doc_id, err);
 
+            if (err != nullptr) {
+                throw documents::document_not_found_error(
+                    "Document was not found with \'id\' " + doc_id
+                );
+            }
+           
             // find out which fields were updated
+            int parameter_idx   = 1;
+            std::string SET_COLLECTION_ID = "\ncollection_id = ?,";
+            std::string SET_CONTENT       = "\ncontent       = ?,";
+            std::string SET_EMBEDDINGS    = "\nembedding     = ?,";
+            std::string SET_METADATA      = "\nmetadata      = ?,";
+            std::string SET_UPDATED_AT    = "\nupdated_at    = ?,";
 
             // prepare SQL command
+            std::string SQL_STMT_END = "\nWHERE id = ?;";
+            std::string sql = R"(
+                UPDATE documents
+                SET 
+            )";
 
-            // bind values to SQL parameters
+            // store ? idx and data type
+            std::map<int, sqlite3::SQLite3Value> params;
 
-            // handle exceptions
+            // append params to hash map
+            if (doc.collection_id) {
+                    params.insert({parameter_idx++, *doc.collection_id});
+
+                    sql += SET_COLLECTION_ID;
+            }
+            if (doc.content) {
+                    params.insert({parameter_idx++, *doc.content});;
+
+                    sql += SET_CONTENT;
+            }
+            if (doc.embeddings) {
+                    params.insert({parameter_idx++, *doc.embeddings});
+
+                    sql += SET_EMBEDDINGS;
+            }
+            if (doc.metadata) {
+                    params.insert({parameter_idx++, doc.metadata->dump()});
+
+                    sql += SET_METADATA;
+            }
+            if (doc.updated_at) {
+                    params.insert({parameter_idx++, *doc.updated_at});
+                    sql += SET_UPDATED_AT;
+            }else {
+                // Always sets new updated_at field
+                params.insert({parameter_idx++, this->current_timestamp()});
+                sql += SET_UPDATED_AT;
+            }
+
+            // pop off leading command from SQL statement
+            if (sql.back() == ',') sql.pop_back();
+
+            params.insert({parameter_idx++, *doc.id});
+            sql += SQL_STMT_END;
+            
+            // Create statement
+            sqlite3_stmt* stmt = nullptr;
+            int rc = sqlite3_prepare_v3(this->__database, sql.c_str(), -1, 0, &stmt, nullptr);
+
+            if (rc != SQLITE_OK) {
+                sqlite3_finalize(stmt);
+                throw sqlite3::sqlite_stmt_error("Error: Unable to prepare SQLite3 statement.");
+            }
 
 
+            // Bind values to statement
+            RC return_code;
+            for (std::pair<const int, sqlite3::SQLite3Value>& p : params) {
+                return_code = this->bind_stmt_value(stmt, p.first, p.second);
+
+                if (return_code != RC::OK) {
+                    throw sqlite3::sqlite_bind_error(
+                        "Error: Unable to bind value to SQLite statement."
+                    );
+                }   
+            }
+
+            // Excecute SQLite statement
+            rc = sqlite3_step(stmt);
+
+            if (rc != SQLITE_DONE) {
+                throw sqlite3::sqlite_query_error(
+                    "Error: Upsert query failed."
+                );
+            }   
+            
+            response.data = documents::document_status::updated;
+            return response;
+            
         }
-        catch(const vektor::sqlite3::sqlite_cmd_error& e) {
+        catch(const std::runtime_error& e) {
             response.data = documents::document_status::operation_error;
             std::cerr << e.what() << std::endl;
         }
         catch(const std::invalid_argument& e) {
             response.data = documents::document_status::operation_error;
             std::cerr << e.what() << std::endl;
+
         }
         catch(const std::exception& e) {
             response.data = documents::document_status::unexpected_error;
             std::cerr << e.what() << std::endl;
         }
     
+        return response;
     
     }
 
 
 // Returns a document fetched by collection ID
-// FIXME:
 documents::document
-    vektor::sqlite_persistent_client::get_record(
-        std::string id, documents::document_status* err) {
+    vektor::sqlite_persistent_client::get_document_by_id(
+            std::string id, documents::document_status* err) {
 
-    }
+            documents::document _document;
+
+            try{
+
+                // ensure id is valid
+                if (id.empty()) {
+                    throw std::invalid_argument(
+                        "Error: \'id\' cannot be empty string."
+                    );
+                }
+
+                std::string sql = R"(
+                    SELECT * 
+                    FROM documents
+                    WHERE id = ?
+                    LIMIT 1;
+                )";
+
+                // Create SQL statement
+                sqlite3_stmt* stmt = nullptr;
+
+                int rc = sqlite3_prepare_v3(this->__database, sql.c_str(), -1, 0, &stmt, nullptr);
+
+                if (rc != SQLITE_OK) {
+                    sqlite3_finalize(stmt);
+                    throw sqlite3::sqlite_cmd_error(
+                        "Error: Unable to prepare SQL command."
+                    );
+                }
+                
+                // Bind id to SQL parameter
+                rc = sqlite3_bind_text(stmt, 1, id.c_str(), -1, SQLITE_TRANSIENT);
+
+                if (rc != SQLITE_OK) {
+                    sqlite3_finalize(stmt);
+                    throw sqlite3::sqlite_cmd_error(
+                        "Error: Unable to bind document id to SQL command."
+                    );
+                }
+
+
+                // Excecute SQL command to get document
+                rc = sqlite3_step(stmt);
+
+                // doc not found
+                if (rc == SQLITE_DONE) {
+                    sqlite3_finalize(stmt);
+                    *err = documents::document_status::not_found;
+                    return _document;
+                }
+
+
+                // doc is found, now we must fill struct with row columns
+                if (rc == SQLITE_ROW) {
+                    err = nullptr;
+                    
+                    // Extract column data
+                    std::string _collection_id = reinterpret_cast<const char*>(
+                            sqlite3_column_text(stmt, 1)
+                    );
+                    std::string _content = reinterpret_cast<const char*>(
+                            sqlite3_column_text(stmt, 2)
+                    );
+                    std::vector<float> _embedding = extract_blob_column_embeddings(
+                        stmt, 3
+                    );
+                    std::string _raw_metadata = reinterpret_cast<const char*>(
+                            sqlite3_column_text(stmt, 4)
+                    );
+                    documents::json _metadata = documents::json::parse(
+                        _raw_metadata
+                    );
+                    std::string _created_at = reinterpret_cast<const char*>(
+                            sqlite3_column_text(stmt, 5)
+                    );
+                    std::string _updated_at = reinterpret_cast<const char*>(
+                            sqlite3_column_text(stmt, 6)
+                    );
+
+                    // Apply values to document struct
+                    _document.id            = id;
+                    _document.collection_id = _collection_id;
+                    _document.content       = _content;
+                    _document.embeddings    = _embedding;
+                    _document.metadata      = _metadata;
+                    _document.created_at    = _created_at; 
+                    _document.updated_at    = _updated_at; 
+
+                    // destroy statement ptr
+                    sqlite3_finalize(stmt);
+                    return _document;
+                }
+
+        
+                throw std::runtime_error(
+                    "Uncaught exception occured when trying to get document by id"
+                );
+
+            }
+            catch(const std::runtime_error& e){
+                std::cerr << e.what() << std::endl;
+                *err = documents::document_status::operation_error;
+                return _document;
+            }
+            catch(const std::exception& e){
+                std::cerr << e.what() << std::endl;
+                *err = documents::document_status::unexpected_error;
+                return _document;
+            }
+
+        }
+
 
 collections::collection 
-    vektor::sqlite_persistent_client::get_collection(
+    vektor::sqlite_persistent_client::get_collection_by_id(
         std::string id, collections::collection_status* err) {
 
     collections::collection _collection;
@@ -471,7 +656,7 @@ collections::collection
         )";
 
         // prepare SQL statement
-        sqlite3_stmt* stmt;
+        sqlite3_stmt* stmt = nullptr;
 
         int rc = sqlite3_prepare_v3(this->__database, sql.c_str(), -1, 0, &stmt, nullptr);
 
@@ -552,7 +737,7 @@ collections::collection
 
 // Deletes a document from SQLite database
 vektor::response<documents::document_status> 
-    vektor::sqlite_persistent_client::remove_record(std::string id) {
+    vektor::sqlite_persistent_client::remove_document(std::string id) {
     
     vektor::response<documents::document_status> response;
 
@@ -571,7 +756,7 @@ vektor::response<documents::document_status>
             WHERE id = ?;
         )";
 
-        sqlite3_stmt* stmt;
+        sqlite3_stmt* stmt = nullptr;
 
         int rc = sqlite3_prepare_v3(this->__database, sql.c_str(), -1, 0, &stmt, nullptr);
 
@@ -649,7 +834,7 @@ vektor::response<documents::document_status>
             WHERE id = ?;
         )";
 
-        sqlite3_stmt* stmt;
+        sqlite3_stmt* stmt = nullptr;
 
         int rc = sqlite3_prepare_v3(this->__database, sql.c_str(), -1, 0, &stmt, nullptr);
 
@@ -1000,3 +1185,78 @@ std::string vektor::sqlite_persistent_client::current_timestamp() {
     ss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
     return ss.str();
 }
+
+std::vector<float> vektor::sqlite_persistent_client::extract_blob_column_embeddings(
+                    sqlite3_stmt* stmt, const unsigned int column) {
+
+        // Get blob bytes
+        const void* blob = sqlite3_column_blob(stmt, column);
+        int bytes = sqlite3_column_bytes(stmt, column);
+
+        std::vector<float> embeddings;
+
+        if (blob && bytes > 0) {
+            if (bytes % sizeof(float) != 0) {
+                // Invalid blob size
+                throw std::runtime_error("Invalid embeddings BLOB size");
+            }
+
+            const auto* floats = static_cast<const float*>(blob);
+
+            embeddings.assign(
+                floats,
+                floats + bytes / sizeof(float)
+            );
+        }
+        return embeddings;
+}
+
+
+RC vektor::sqlite_persistent_client::bind_stmt_value(
+    sqlite3_stmt* stmt,
+    unsigned int pidx,
+    const sqlite3::SQLite3Value& value
+) {
+
+    int rc = SQLITE_ERROR;
+
+    // Bind Text
+    if (const auto* text = std::get_if<std::string>(&value)) {
+        rc = sqlite3_bind_text(
+            stmt, pidx, text->c_str(), -1, SQLITE_TRANSIENT
+        );
+    }
+
+    // Bind Integer
+    else if (const auto* num = std::get_if<int>(&value)) {
+        rc = sqlite3_bind_int(stmt, pidx, *num);
+    }
+
+    // Bind Blob
+    else if (const auto* blob =
+                 std::get_if<std::vector<float>>(&value)) {
+        if (blob->empty()) {
+            static const unsigned char empty_blob = 0;
+            rc = sqlite3_bind_blob(
+                stmt, pidx, &empty_blob, 0, SQLITE_TRANSIENT
+            );
+        } else {
+            rc = sqlite3_bind_blob(
+                stmt,
+                pidx,
+                blob->data(),
+                static_cast<int>(blob->size() * sizeof(float)),
+                SQLITE_TRANSIENT
+            );
+        }
+    }
+
+    // Bind NULL
+    else if (std::holds_alternative<std::nullptr_t>(value)) {
+        rc = sqlite3_bind_null(stmt, pidx);
+    }
+
+    return rc == SQLITE_OK ? RC::OK : RC::RUNTIME_ERROR;
+}
+        
+        

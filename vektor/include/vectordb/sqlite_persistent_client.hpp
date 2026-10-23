@@ -30,9 +30,14 @@
 
 
 #pragma once
+
+#include <iostream>
 #include <filesystem>
 #include <cstdlib>
 #include <sqlite3.h>
+#include <variant>
+#include <string>
+#include <cstddef>
 
 #include "vectordb.hpp"
 #include "persistentclient.hpp"
@@ -58,8 +63,20 @@ namespace vektor{
         enum data_types {
             _int,
             _text,
-            _blob
+            _blob,
+            _null,
         };
+
+        // Smart pointer for SQL statements so they auto garbage collect
+        typedef std::unique_ptr<sqlite3_stmt, decltype(&sqlite3_finalize)> sql_statement;
+
+        // Generic helper for SQLite values
+        typedef std::variant<
+                std::string,
+                int,
+                std::vector<float>,
+                std::nullptr_t
+                            > SQLite3Value;
 
         // SQL row
         typedef std::vector<std::string> sqlite3_row;
@@ -77,6 +94,12 @@ namespace vektor{
          *      error and exception handling
          */
         struct sqlite_client_error : public std::runtime_error {
+            using std::runtime_error::runtime_error;
+        };
+        struct sqlite_stmt_error : public std::runtime_error {
+            using std::runtime_error::runtime_error;
+        };
+        struct sqlite_bind_error : public std::runtime_error {
             using std::runtime_error::runtime_error;
         };
         struct sqlite_cmd_error : public std::runtime_error {
@@ -156,24 +179,18 @@ namespace vektor{
 
 
         /**
-         * @brief Updates a document row in SQLite documents
-         *        table. Document must already exist for
-         *        method to successfully work
-         * @param id 
-         * @param collection_id 
-         * @param content 
-         * @param embeddings 
-         * @param metadata 
-         * @return vektor::response<documents::document_status> 
+         * @brief Inserts a document if it does not exist, or updates only
+         *        the fields provided if it already exists.
+         *
+         * @param doc Document data. The document ID is required.
+         *            Collection may be identified by collection_id or
+         *            collection_name. When updating an existing document,
+         *            unset optional fields remain unchanged.
+         *
+         * @return vektor::response<documents::document_status>
          */
-        vektor::response<documents::document_status> upsert(
-            std::string         id, 
-            std::string         collection_id, 
-            std::string         content, 
-            std::vector<float>  embeddings,
-            documents::json     metadata) override;
+        vektor::response<documents::document_status> upsert(documents::document doc) override;
             
-
 
         /**
          * @brief Get the collection object from SQLite
@@ -183,9 +200,9 @@ namespace vektor{
          * @param err 
          * @return collections::collection 
          */
-        collections::collection get_collection(std::string id, collections::collection_status* err) override;
-        collections::collection get_collection(std::string id) {
-            return get_collection(id, nullptr);
+        collections::collection get_collection_by_id(std::string id, collections::collection_status* err) override;
+        collections::collection get_collection_by_id(std::string id) {
+            return get_collection_by_id(id, nullptr);
         }
 
         /**
@@ -197,9 +214,9 @@ namespace vektor{
          * @param err 
          * @return documents::document 
          */
-        documents::document get_record(std::string id, documents::document_status* err) override;
-        documents::document get_record(std::string id) {
-            return get_record(id, nullptr);
+        documents::document get_document_by_id(std::string id, documents::document_status* err) override;
+        documents::document get_document_by_id(std::string id) {
+            return get_document_by_id(id, nullptr);
         }
 
         /**
@@ -209,7 +226,7 @@ namespace vektor{
          * @param id 
          * @return vektor::response<documents::document_status> 
          */
-        vektor::response<documents::document_status> remove_record(std::string id) override;
+        vektor::response<documents::document_status> remove_document(std::string id) override;
         
         /**
          * @brief Removes a collection row from SQLite
@@ -262,8 +279,31 @@ namespace vektor{
          * @return std::string 
          */
         std::string uuid();
-        
 
+
+        /**
+         * @brief Converts blob from SQLite row column
+         *      and extracts the floats from blob.
+         * 
+         * @param stmt      SQL command binary
+         * @param column    Column index
+         * @return std::vector<float> 
+         */
+        std::vector<float> extract_blob_column_embeddings(
+                    sqlite3_stmt* stmt, const unsigned int column);
+        
+        
+        /**
+         * @brief Bind a value to a SQLite3 statement pointer
+         * 
+         * @param stmt 
+         * @param pidx 
+         * @param value 
+         * @return RC 
+         */
+        RC bind_stmt_value(sqlite3_stmt* stmt, unsigned int pidx, const sqlite3::SQLite3Value& value);
+        
+        
         /**
          * @brief Executes a simple SQLite command
          * @deprecated DO NOT USE

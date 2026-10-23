@@ -54,7 +54,16 @@ namespace documents {
         std::optional<std::string>         content;
         std::optional<std::vector<float>>  embeddings;
         std::optional<documents::json>     metadata;
+        std::optional<std::string>         created_at;
+        std::optional<std::string>         updated_at;
     };
 
+    /**
+     * @brief Custom Document exceptions
+     * 
+     */
+    struct document_not_found_error : public std::runtime_error {
+        using std::runtime_error::runtime_error;
+    };
 
 }

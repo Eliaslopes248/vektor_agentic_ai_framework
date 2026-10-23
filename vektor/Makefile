@@ -35,7 +35,7 @@ CXX=clang++
 
 # NOTE: I use optimize 3 for faster production speed
 # 		This will result in a slower build time.
-CXX_FLAGS=-std=c++17 -Wall
+CXX_FLAGS=-std=c++17 -Wall 
 
 # Define project top level directories
 BUILD_DIR	 = ./build
@@ -143,17 +143,6 @@ $(TARGET_VEKTOR_LIB): $(VEKTOR_OBJECT_FILES)
 	$(VEKTOR_LDFLAGS)	\
 	-o $@ \
 	$^
-
-# Deprecated
-# $(TARGET_VEKTOR_LIB): $(VEKTOR_OBJECT_FILES)
-# 	@echo "--------------------------------"
-# 	@echo "Building shared library..."
-# 	@echo "--------------------------------"
-# 	$(CXX) -dynamiclib \
-# 	-install_name @rpath/libvektor.so \
-# 	-o $@ \
-# 	$^
-
 
 # Clean up targets
 .PHONY: clean
