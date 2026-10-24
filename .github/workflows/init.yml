@@ -30,7 +30,7 @@ jobs:
         run: make -C vektor lib
 
       - name: Build unit tests
-        run: make -C unittests ut
+        run: make -C vektor/unittests ut
 
       - name: Run unit tests
-        run: make -C unittests ut-run
+        run: make -C vektor/unittests ut-run
