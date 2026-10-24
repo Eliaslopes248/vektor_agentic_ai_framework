@@ -80,7 +80,11 @@ The unit-test Makefile has a build target named `ut`. Build the test executable
 from the repository root with:
 
 ```sh
+# Build /unittests/build/bin/unittests executable
 make -C vektor/unittests ut
+
+# Build and Run target
+make -C vektor/unittests ut-run
 ```
 
 Then run it with:
