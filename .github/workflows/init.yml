@@ -26,7 +26,11 @@ jobs:
           
 
       # Build Target and run unit tests
-      - name: Build and run unit tests
-        run: |
-          make -C . lib
-          make -C unittests ut-run
+      - name: Build library
+        run: make lib
+
+      - name: Build unit tests
+        run: make -C unittests ut
+
+      - name: Run unit tests
+        run: make -C unittests ut-run
