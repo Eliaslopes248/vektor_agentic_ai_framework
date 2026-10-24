@@ -90,8 +90,11 @@ ifeq ($(UNAME_S),Darwin)
     UT_RPATH_LIST 	:= -Wl,-rpath,@executable_path/../libs
 
 	
-	VEKTOR_INCLUDE_PATHS += -I/opt/homebrew/opt/boost/include
-	VEKTOR_INCLUDE_PATHS += -I/opt/homebrew/Cellar/nlohmann-json/3.12.0/include/
+	BOOST_PREFIX := $(shell brew --prefix boost)
+    JSON_PREFIX := $(shell brew --prefix nlohmann-json)
+
+    VEKTOR_INCLUDE_PATHS += -I$(BOOST_PREFIX)/include
+    VEKTOR_INCLUDE_PATHS += -I$(JSON_PREFIX)/include
 
 else ifeq ($(UNAME_S),Linux)
     # Linux
