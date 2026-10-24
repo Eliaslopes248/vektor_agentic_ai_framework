@@ -1,4 +1,4 @@
-name: Init Workflow
+name: Vektor Main Build Workflow V1
 
 on:
   push:
@@ -11,9 +11,22 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
 
     steps:
-      - name: hello-world
+      # Clone Github Repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install Dependencies
+      - name: Install dependencies
         run: |
-          echo "Hello World!"
+          brew update
+          brew install googletest nlohmann-json
+          
+
+      # Build Target and run unit tests
+      - name: Build and run unit tests
+        run: |
+          make -C . lib
+          make -C unittests ut-run

@@ -82,8 +82,7 @@ namespace collections {
      * @brief Struct to represent Collection object
      * 
      */
-    struct collection
-    {
+    struct collection {
         // unique id for collection
         std::string id;
 

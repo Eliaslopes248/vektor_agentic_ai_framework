@@ -33,8 +33,8 @@
 
 std::string collections::metric_to_string(const collections::metric m) {
     switch (m) {
-        case collections::metric::cosine:       return "cosine";
-        case collections::metric::l2:           return "l2";
+        case collections::metric::cosine:        return "cosine";
+        case collections::metric::l2:            return "l2";
         case collections::metric::inner_product: return "inner_product";
     }
     throw std::invalid_argument("Unknown metric");

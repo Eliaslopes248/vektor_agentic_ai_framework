@@ -62,12 +62,25 @@ UT_BUILD_LIBS_DIR = $(UT_BUILD_DIR)/libs
 UT_SRC_FILES = $(shell find $(UT_SRC_DIR) -type f -name '*.cpp')
 UT_OBJ_FILES = $(patsubst $(UT_SRC_DIR)/%.cpp, $(UT_BUILD_OBJ_DIR)/%.o, $(UT_SRC_FILES))
 
-UT_INCLUDE_PATH_LIST = -Iinclude \
-						-I$(ROOT_DIR)/include
+# Resolve Library Include paths
+JSON_INCLUDE_PATH := -I$(shell brew --prefix nlohmann-json)/include
 
-# Commands to get all QT Paths
-QT_CFLAGS := $(shell pkg-config --cflags Qt6Test)
-QT_LIBS   := $(shell pkg-config --libs Qt6Test Qt6Core)
+
+UT_INCLUDE_PATH_LIST = -Iinclude \
+						-I$(ROOT_DIR)/include \
+						$(JSON_INCLUDE_PATH)
+
+GTEST_LIB_ROOT 					:= $(shell brew --prefix googletest)
+GTEST_INCLUDE_PATH  			:= -I$(GTEST_LIB_ROOT)/include
+GTEST_STATIC_LIB_SEARCH_PATH  	:= -L$(GTEST_LIB_ROOT)/lib
+GTEST_STATIC_LIB_LIST 			:= -lgmock_main   \
+									-lgmock 	 \
+									-lgtest_main \
+									-lgtest
+
+.PHONY:gt 
+gt:
+	@echo $(GTEST_LIB_ROOT)
 
 # Aggregate all search paths for libraries
 UT_LIB_PATH_LIST = -L$(ROOT_BUILD_DIR)/libs
@@ -104,8 +117,12 @@ $(VEKTOR_LIB):
 $(UT_BUILD_OBJ_DIR)/%.o : $(UT_SRC_DIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CPP_FLAGS) \
-	$(QT_CFLAGS) $(UT_INCLUDE_PATH_LIST) \
+	$(GTEST_INCLUDE_PATH) $(UT_INCLUDE_PATH_LIST) \
 	-c $< -o $@
+
+.PHONY: ut-run 
+ut-run: ut 
+	$(UT_EXE)
 
 .PHONY: ut 
 ut: ut_build_dir_setup build-vektor $(UT_EXE)
@@ -113,12 +130,13 @@ ut: ut_build_dir_setup build-vektor $(UT_EXE)
 # Compile ./unittest executable
 $(UT_EXE): $(UT_OBJ_FILES)
 	@mkdir -p $(dir $@)
-	$(CXX) $(CPP_FLAGS) \
-	$^ 			\
-	$(QT_LIBS) \
-	$(UT_LIB_PATH_LIST) \
-	$(UT_RPATH_LIST) \
-	$(UT_LIB_LIST) \
+	$(CXX) $(CPP_FLAGS) 			\
+	$^ 								\
+	$(GTEST_STATIC_LIB_SEARCH_PATH) \
+	$(GTEST_STATIC_LIB_LIST)		\
+	$(UT_LIB_PATH_LIST) 			\
+	$(UT_RPATH_LIST) 				\
+	$(UT_LIB_LIST) 					\
 	-o $@
 
 # Clean up targets

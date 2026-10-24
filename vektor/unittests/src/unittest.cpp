@@ -29,10 +29,9 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <iostream>
-#include "test/test.hpp"
+#include <gtest/gtest.h>
 
-int main(){
-    test_func();
-    std::cout << "Unit tests work" << std::endl;
-    return 0;
+int main(int argc, char* argv[]){
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }
