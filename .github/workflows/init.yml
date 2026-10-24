@@ -27,7 +27,7 @@ jobs:
 
       # Build Target and run unit tests
       - name: Build library
-        run: make lib
+        run: make -C vektor lib
 
       - name: Build unit tests
         run: make -C unittests ut
