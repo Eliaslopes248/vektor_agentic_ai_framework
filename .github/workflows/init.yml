@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew update
-          brew install googletest nlohmann-json
+          brew install boost googletest nlohmann-json
           
 
       # Build Target and run unit tests
